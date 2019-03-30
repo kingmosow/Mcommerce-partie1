@@ -2,6 +2,7 @@ package com.ecommerce.microcommerce.web.controller;
 
 import com.ecommerce.microcommerce.dao.ProductDao;
 import com.ecommerce.microcommerce.model.Product;
+import com.ecommerce.microcommerce.web.exceptions.ProduitGratuitException;
 import com.ecommerce.microcommerce.web.exceptions.ProduitIntrouvableException;
 import com.fasterxml.jackson.databind.ser.FilterProvider;
 import com.fasterxml.jackson.databind.ser.impl.SimpleBeanPropertyFilter;
@@ -16,6 +17,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import javax.validation.Valid;
 import java.net.URI;
+import java.util.HashMap;
 import java.util.List;
 
 
@@ -27,9 +29,7 @@ public class ProductController {
     @Autowired
     private ProductDao productDao;
 
-
     //Récupérer la liste des produits
-
     @RequestMapping(value = "/Produits", method = RequestMethod.GET)
 
     public MappingJacksonValue listeProduits() {
@@ -61,13 +61,12 @@ public class ProductController {
         return produit;
     }
 
-
-
-
     //ajouter un produit
     @PostMapping(value = "/Produits")
 
     public ResponseEntity<Void> ajouterProduit(@Valid @RequestBody Product product) {
+
+        if (product.getPrix()==0) throw new ProduitGratuitException("Le prix de vente doit être superieur à 0");
 
         Product productAdded =  productDao.save(product);
 
@@ -82,13 +81,13 @@ public class ProductController {
 
         return ResponseEntity.created(location).build();
     }
-
+    //supprimer un produit
     @DeleteMapping (value = "/Produits/{id}")
     public void supprimerProduit(@PathVariable int id) {
 
         productDao.delete(id);
     }
-
+    //modifier un produit
     @PutMapping (value = "/Produits")
     public void updateProduit(@RequestBody Product product) {
 
@@ -103,6 +102,28 @@ public class ProductController {
         return productDao.chercherUnProduitCher(400);
     }
 
+    //calcule la marge de chaque produit (différence entre prix d‘achat et prix de vente).
+    @GetMapping(value = "/AdminProduits")
+    public HashMap<Product,Integer> calculerMargeProduit () {
 
+        HashMap<Product,Integer> map = new HashMap<>();
+
+        List<Product> produits = productDao.findAll();
+        if(produits==null) throw new ProduitIntrouvableException("Liste produit vide .");
+        for (Product produit: produits) {
+            map.put(produit,produit.getPrix() - produit.getPrixAchat());
+        }
+        return map;
+    }
+    // la liste de tous les produits triés par nom croissant
+    @GetMapping(value = "/trierProduits")
+    public List<Product> trierProduitsParOrdreAlphabetique () {
+
+        List<Product> produit = productDao.findAllByOrderByNomAsc();
+
+        if(produit==null) throw new ProduitIntrouvableException("Liste produit vide .");
+
+        return produit;
+    }
 
 }
